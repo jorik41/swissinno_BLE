@@ -56,9 +56,13 @@ class SwissinnoResetButton(ButtonEntity):
         try:
             from bleak import BleakClient
 
-            async with BleakClient(self._address) as client:
+            client = BleakClient(self._address)
+            try:
+                await client.connect()
                 await client.write_gatt_char(RESET_CHAR_UUID, b"\x00")
                 _LOGGER.debug("Reset command sent to %s", self._address)
+            finally:
+                await client.disconnect()
 
         except Exception as err:
             _LOGGER.error("Error resetting the mouse trap: %s", err)
