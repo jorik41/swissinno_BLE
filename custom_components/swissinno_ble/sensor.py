@@ -36,7 +36,7 @@ class SwissinnoBLESensor(SensorEntity):
         self._hass = hass
         self._address = address
         self._name = f"{name} Status"
-        self._state: str | None = None
+        self._state: str | None = "Not triggered"
         self._attr_should_poll = False
         self._attr_unique_id = f"{self._address}_status"
         self._attr_device_info = DeviceInfo(
@@ -51,7 +51,7 @@ class SwissinnoBLESensor(SensorEntity):
             {"address": self._address},
             BluetoothScanningMode.ACTIVE,
         )
-        self._last_seen: float | None = None
+        self._last_seen: float | None = self._hass.loop.time()
 
     @callback
     def _async_handle_ble_event(
