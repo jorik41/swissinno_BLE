@@ -1,16 +1,21 @@
-# custom_components/swissinno_ble/button.py
-
 import logging
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC, CONF_NAME
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, SERVICE_UUID
+from .const import DOMAIN, RESET_CHAR_UUID
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass, entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up the Swissinno BLE reset button based on a config entry."""
     name = entry.data[CONF_NAME]
     address = entry.data[CONF_MAC]
@@ -32,7 +37,6 @@ class SwissinnoResetButton(ButtonEntity):
             manufacturer="Swissinno",
             model="Swissinno Mouse Trap",
         )
-        self._state = None
 
     @property
     def name(self):
@@ -48,24 +52,15 @@ class SwissinnoResetButton(ButtonEntity):
         """Handle the button press."""
         try:
             from bleak import BleakClient
-            async with BleakClient(self._address) as client:
-                # Zorg ervoor dat de GATT-service beschikbaar is
-                services = await client.get_services()
-                if SERVICE_UUID not in services:
-                    _LOGGER.error("SERVICE_UUID %s niet gevonden op %s", SERVICE_UUID, self._address)
-                    self.hass.components.persistent_notification.create(
-                        f"SERVICE_UUID {SERVICE_UUID} niet gevonden op {self._address}",
-                        title="Swissinno Mouse Trap",
-                    )
-                    return
 
-                await client.write_gatt_char(SERVICE_UUID, b'\x00')
+            async with BleakClient(self._address) as client:
+                await client.write_gatt_char(RESET_CHAR_UUID, b"\x00")
                 _LOGGER.debug("Reset command sent to %s", self._address)
-                # Optioneel: Update de sensorstatus na reset
-                # Dit gebeurt automatisch door de advertentie callback
-        except Exception as e:
-            _LOGGER.error("Error resetting the mouse trap: %s", e)
-            self.hass.components.persistent_notification.create(
-                f"Error resetting mouse trap {self._name}: {e}",
+
+        except Exception as err:
+            _LOGGER.error("Error resetting the mouse trap: %s", err)
+            await self.hass.components.persistent_notification.async_create(
+                f"Error resetting mouse trap {self._name}: {err}",
                 title="Swissinno Mouse Trap",
             )
+
