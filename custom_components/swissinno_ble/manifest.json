@@ -2,16 +2,13 @@
   "domain": "swissinno_ble",
   "name": "Swissinno BLE",
   "version": "1.0.0",
-  "documentation": "https://github.com/jouwgebruikersnaam/swissinno_ble",
+  "documentation": "https://github.com/yourusername/swissinno_BLE",
   "requirements": [
-    "bleak>=0.15.0"
+    "bleak>=0.20.2"
   ],
-  "dependencies": [
-    "bluetooth"
-  ],
-  "codeowners": [
-    "@jouwgebruikersnaam"
-  ],
+  "dependencies": ["bluetooth"],
+  "codeowners": ["@yourusername"],
+  "issue_tracker": "https://github.com/yourusername/swissinno_BLE/issues",
   "config_flow": true,
   "iot_class": "local_push",
   "bluetooth": [

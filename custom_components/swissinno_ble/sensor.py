@@ -1,19 +1,26 @@
 import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.components.bluetooth import (
-    async_register_callback,
-    BluetoothServiceInfoBleak,
     BluetoothChange,
     BluetoothScanningMode,
+    BluetoothServiceInfoBleak,
+    async_register_callback,
 )
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_MAC, CONF_NAME
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
-from homeassistant.core import callback
-from homeassistant.const import CONF_NAME, CONF_MAC
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
 from .const import DOMAIN, MANUFACTURER_IDS, UNAVAILABLE_AFTER_SECS
 
 _LOGGER = logging.getLogger(__name__)
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
     """Set up Swissinno BLE sensor based on a config entry."""
     address = config_entry.data[CONF_MAC].lower()
     name = config_entry.data[CONF_NAME]
@@ -24,12 +31,13 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class SwissinnoBLESensor(SensorEntity):
     """Representation of a Swissinno BLE sensor."""
 
-    def __init__(self, hass, address, name):
+    def __init__(self, hass: HomeAssistant, address: str, name: str) -> None:
         """Initialize the sensor."""
         self._hass = hass
         self._address = address
         self._name = f"{name} Status"
-        self._state = None
+        self._state: str | None = None
+        self._attr_should_poll = False
         self._attr_unique_id = f"{self._address}_status"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._address)},
@@ -37,78 +45,78 @@ class SwissinnoBLESensor(SensorEntity):
             manufacturer="Swissinno",
             model="Swissinno Mouse Trap",
         )
-        self._unsub = None
-        self._available = False
-        self._last_seen = None
-
-        # Registreer de callback
         self._unsub = async_register_callback(
             hass,
             self._async_handle_ble_event,
             {"address": self._address},
             BluetoothScanningMode.ACTIVE,
         )
+        self._last_seen: float | None = None
 
     @callback
     def _async_handle_ble_event(
         self,
         service_info: BluetoothServiceInfoBleak,
         change: BluetoothChange,
-    ):
-        """Verwerk een Bluetooth-evenement."""
-        _LOGGER.debug("Ontvangen advertentie van %s: %s", self._address, service_info)
+    ) -> None:
+        """Process a Bluetooth event."""
+        _LOGGER.debug("Advertisement from %s: %s", self._address, service_info)
 
-        # Verwerk de advertentiegegevens
         manufacturer_data = None
         for manufacturer_id in MANUFACTURER_IDS:
             data = service_info.manufacturer_data.get(manufacturer_id)
             if data:
                 manufacturer_data = data
-                _LOGGER.debug("Gevonden manufacturer data met ID 0x%04X", manufacturer_id)
+                _LOGGER.debug(
+                    "Found manufacturer data with ID 0x%04X", manufacturer_id
+                )
                 break
 
         if not manufacturer_data:
-            _LOGGER.debug("Geen manufacturer data met IDs %s gevonden", [f"0x{mid:04X}" for mid in MANUFACTURER_IDS])
+            _LOGGER.debug(
+                "No manufacturer data with IDs %s found",
+                [f"0x{mid:04X}" for mid in MANUFACTURER_IDS],
+            )
             return
 
         if len(manufacturer_data) < 1:
-            _LOGGER.debug("Manufacturer data is te kort")
+            _LOGGER.debug("Manufacturer data is too short")
             return
 
         status_byte = manufacturer_data[0]
         _LOGGER.debug("Status byte: 0x%02X", status_byte)
 
         if status_byte == 0x00:
-            state = "Niet geactiveerd"
+            state = "Not triggered"
         elif status_byte == 0x01:
-            state = "Geactiveerd"
+            state = "Triggered"
         else:
-            state = f"Onbekende status: 0x{status_byte:02X}"
+            state = f"Unknown status: 0x{status_byte:02X}"
 
         self._state = state
-        self._available = True
         self._last_seen = self._hass.loop.time()
         self.async_write_ha_state()
 
     @property
-    def name(self):
-        """Geef de naam van de sensor terug."""
+    def name(self) -> str:
+        """Return the name of the sensor."""
         return self._name
 
     @property
-    def native_value(self):
-        """Geef de huidige status terug."""
+    def native_value(self) -> str | None:
+        """Return the current status."""
         return self._state
 
     @property
-    def available(self):
-        """Geef True terug als de sensor beschikbaar is."""
+    def available(self) -> bool:
+        """Return True if the sensor is available."""
         if self._last_seen is None:
             return False
         return (self._hass.loop.time() - self._last_seen) < UNAVAILABLE_AFTER_SECS
 
-    async def async_will_remove_from_hass(self):
-        """Opschonen wanneer de entiteit wordt verwijderd."""
+    async def async_will_remove_from_hass(self) -> None:
+        """Clean up when the entity is removed."""
         if self._unsub:
             self._unsub()
             self._unsub = None
+
