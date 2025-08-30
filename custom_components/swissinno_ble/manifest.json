@@ -1,7 +1,7 @@
 {
   "domain": "swissinno_ble",
   "name": "Swissinno BLE",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "documentation": "https://github.com/yourusername/swissinno_BLE",
   "requirements": [
     "bleak>=0.20.2"
