@@ -1,6 +1,9 @@
 import logging
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.components.persistent_notification import (
+    async_create as async_create_persistent_notification,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC, CONF_NAME
 from homeassistant.core import HomeAssistant
@@ -59,7 +62,8 @@ class SwissinnoResetButton(ButtonEntity):
 
         except Exception as err:
             _LOGGER.error("Error resetting the mouse trap: %s", err)
-            await self.hass.components.persistent_notification.async_create(
+            await async_create_persistent_notification(
+                self.hass,
                 f"Error resetting mouse trap {self._name}: {err}",
                 title="Swissinno Mouse Trap",
             )
