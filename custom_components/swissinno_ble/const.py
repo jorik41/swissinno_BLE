@@ -6,6 +6,10 @@ MANUFACTURER_IDS = [0xBB0B, 0x0BBB]
 # Time in seconds after which the sensor is marked as unavailable
 UNAVAILABLE_AFTER_SECS = 600  # 10 minutes
 
+# GATT characteristic holding the trap name
+NAME_CHAR_UUID = "02ecc6cd-2b43-4db5-96e6-ede92cf8778b"
+
 # GATT characteristic used to reset the trap
-RESET_CHAR_UUID = "0000ff01-0000-1000-8000-00805f9b34fb"
+# Write 0x00 to mark the trap as not triggered (0x01 means triggered)
+RESET_CHAR_UUID = "02ecc6cd-2b43-4db5-96e6-ede92cf8778d"
 
