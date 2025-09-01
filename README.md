@@ -30,6 +30,15 @@ trap status and provides a button to remotely reset the trap.
 2. Click **Add Integration** and search for "Swissinno BLE".
 3. Enter the name and MAC address of your trap.
 
+## BLE details
+
+- The first byte of the Swissinno manufacturer data is `0x00` when the trap is
+  not triggered and `0x01` when triggered.
+- Resetting the trap is done by writing `0x00` to characteristic
+  `02ecc6cd-2b43-4db5-96e6-ede92cf8778d` (`0x01` indicates a triggered state).
+- The trap name can be read and written via characteristic
+  `02ecc6cd-2b43-4db5-96e6-ede92cf8778b`.
+
 ## Notes
 
 - Requires Bluetooth support on the host running Home Assistant.
