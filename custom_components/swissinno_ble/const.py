@@ -12,6 +12,10 @@ MANUFACTURER_IDS = [0xBB0B, 0x0BBB]
 # Time in seconds after which the sensor is marked as unavailable
 UNAVAILABLE_AFTER_SECS = 600  # 10 minutes
 
+# Battery voltage range used for percentage calculation
+BATTERY_MIN_VOLTAGE = 2.0
+BATTERY_MAX_VOLTAGE = 3.2
+
 # GATT characteristic holding the trap name
 NAME_CHAR_UUID = "02ecc6cd-2b43-4db5-96e6-ede92cf8778b"
 

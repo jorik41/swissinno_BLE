@@ -45,6 +45,14 @@ button to remotely reset the trap.
   `02ecc6cd-2b43-4db5-96e6-ede92cf8778d` (`0x01` indicates a triggered state).
 - The trap name can be read and written via characteristic
   `02ecc6cd-2b43-4db5-96e6-ede92cf8778b`.
+- Manufacturer data also contains the trap's battery voltage. Examples:
+  - `0x0201060303D6FC0DFFBB0B001AAC12030001B80100` → 2.6 V
+  - `0x0201060303D6FC0DFFBB0B001DAC12030001CA0100` → 2.85 V
+  - `0x0201060303D6FC0DFFBB0B001FAC12030001DA0100` → 3.08 V
+  - Bytes 7–8 (zero-indexed) of the manufacturer data form a little-endian
+    value used to calculate the battery voltage via `(raw - 253) / 72`. The
+    integration exposes **Battery Voltage** and **Battery** sensors which show
+    the voltage and an approximate percentage (2.0 V empty, 3.2 V full).
 
 ## Notes
 
