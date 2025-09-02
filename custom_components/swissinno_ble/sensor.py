@@ -33,7 +33,9 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
     BATTERY_MAX_VOLTAGE,
+    BATTERY_MAX_VOLTAGE_RECHARGEABLE,
     BATTERY_MIN_VOLTAGE,
+    BATTERY_MIN_VOLTAGE_RECHARGEABLE,
     DOMAIN,
     MANUFACTURER_IDS,
     UNAVAILABLE_AFTER_SECS,
@@ -51,10 +53,11 @@ async def async_setup_entry(
     address = config_entry.data[CONF_MAC].lower()
     name = config_entry.data[CONF_NAME]
 
+    rechargeable = config_entry.options.get("rechargeable_battery", False)
     sensors = [
         SwissinnoBLEStatusSensor(hass, address, name),
         SwissinnoBLEVoltageSensor(hass, address, name),
-        SwissinnoBLEBatterySensor(hass, address, name),
+        SwissinnoBLEBatterySensor(hass, address, name, rechargeable),
     ]
     async_add_entities(sensors)
 
@@ -71,11 +74,9 @@ def _raw_to_voltage(raw: int) -> float:
     return round((raw - 253) / 72, 2)
 
 
-def _voltage_to_percentage(voltage: float) -> int:
+def _voltage_to_percentage(voltage: float, min_voltage: float, max_voltage: float) -> int:
     """Convert a voltage reading to a battery percentage."""
-    percent = (voltage - BATTERY_MIN_VOLTAGE) / (
-        BATTERY_MAX_VOLTAGE - BATTERY_MIN_VOLTAGE
-    ) * 100
+    percent = (voltage - min_voltage) / (max_voltage - min_voltage) * 100
     return max(0, min(100, round(percent)))
 
 
@@ -203,6 +204,7 @@ class SwissinnoBLEVoltageSensor(SwissinnoBLEEntity):
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = UnitOfElectricPotential.VOLT
         self._attr_state_class = SensorStateClass.MEASUREMENT
+        self._attr_suggested_display_precision = 2
         self._voltage: float | None = None
 
     def _handle_data(self, manufacturer_data: bytes) -> None:
@@ -221,12 +223,19 @@ class SwissinnoBLEVoltageSensor(SwissinnoBLEEntity):
 class SwissinnoBLEBatterySensor(SwissinnoBLEEntity):
     """Representation of the trap battery percentage."""
 
-    def __init__(self, hass: HomeAssistant, address: str, name: str) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        address: str,
+        name: str,
+        rechargeable: bool,
+    ) -> None:
         super().__init__(hass, address, name, "Battery", "battery")
         self._attr_device_class = SensorDeviceClass.BATTERY
         self._attr_native_unit_of_measurement = PERCENTAGE
         self._attr_state_class = SensorStateClass.MEASUREMENT
         self._percentage: int | None = None
+        self._rechargeable = rechargeable
 
     def _handle_data(self, manufacturer_data: bytes) -> None:
         raw = _parse_battery_raw(manufacturer_data)
@@ -234,7 +243,17 @@ class SwissinnoBLEBatterySensor(SwissinnoBLEEntity):
             _LOGGER.debug("Manufacturer data is too short")
             return
         voltage = _raw_to_voltage(raw)
-        self._percentage = _voltage_to_percentage(voltage)
+        min_v = (
+            BATTERY_MIN_VOLTAGE_RECHARGEABLE
+            if self._rechargeable
+            else BATTERY_MIN_VOLTAGE
+        )
+        max_v = (
+            BATTERY_MAX_VOLTAGE_RECHARGEABLE
+            if self._rechargeable
+            else BATTERY_MAX_VOLTAGE
+        )
+        self._percentage = _voltage_to_percentage(voltage, min_v, max_v)
         _LOGGER.debug(
             "Battery raw %s -> %.2f V -> %d%%", raw, voltage, self._percentage
         )
