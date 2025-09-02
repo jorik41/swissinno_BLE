@@ -21,6 +21,7 @@ from .const import DOMAIN, RESET_CHAR_UUID
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -32,6 +33,7 @@ async def async_setup_entry(
 
     button = SwissinnoResetButton(name, address)
     async_add_entities([button])
+
 
 class SwissinnoResetButton(ButtonEntity):
     """Representation of the Swissinno BLE reset button."""
@@ -63,7 +65,7 @@ class SwissinnoResetButton(ButtonEntity):
         from bleak import BleakClient
         from bleak.exc import BleakError
 
-        device = await async_ble_device_from_address(
+        device = async_ble_device_from_address(
             self.hass, self._address, connectable=True
         )
         if not device:
@@ -84,4 +86,3 @@ class SwissinnoResetButton(ButtonEntity):
             await async_create_persistent_notification(
                 self.hass, msg, title="Mouse Trap"
             )
-
