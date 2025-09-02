@@ -1,6 +1,7 @@
 import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.components.bluetooth import (
+    BluetoothCallbackMatcher,
     BluetoothChange,
     BluetoothScanningMode,
     BluetoothServiceInfoBleak,
@@ -45,12 +46,19 @@ class SwissinnoBLESensor(SensorEntity):
             manufacturer="Swissinno",
             model="Swissinno Mouse Trap",
         )
-        self._unsub = async_register_callback(
-            hass,
-            self._async_handle_ble_event,
-            {"address": self._address},
-            BluetoothScanningMode.ACTIVE,
-        )
+        # Devices rotate their Bluetooth addresses for privacy which would make
+        # an address based filter miss advertisements. Instead we match on the
+        # manufacturer ID which remains constant for our traps and provides a
+        # stable way to identify them.
+        self._unsub = [
+            async_register_callback(
+                hass,
+                self._async_handle_ble_event,
+                BluetoothCallbackMatcher(manufacturer_id=manufacturer_id),
+                BluetoothScanningMode.ACTIVE,
+            )
+            for manufacturer_id in MANUFACTURER_IDS
+        ]
         self._last_seen: float | None = self._hass.loop.time()
 
     @callback
@@ -60,7 +68,7 @@ class SwissinnoBLESensor(SensorEntity):
         change: BluetoothChange,
     ) -> None:
         """Process a Bluetooth event."""
-        _LOGGER.debug("Advertisement from %s: %s", self._address, service_info)
+        _LOGGER.debug("Advertisement from %s: %s", service_info.address, service_info)
 
         manufacturer_data = None
         for manufacturer_id in MANUFACTURER_IDS:
@@ -72,6 +80,9 @@ class SwissinnoBLESensor(SensorEntity):
                 )
                 break
 
+        # Even though the callback was registered with a manufacturer filter,
+        # verify the manufacturer data to avoid processing packets from
+        # unrelated devices.
         if not manufacturer_data:
             _LOGGER.debug(
                 "No manufacturer data with IDs %s found",
@@ -117,6 +128,7 @@ class SwissinnoBLESensor(SensorEntity):
     async def async_will_remove_from_hass(self) -> None:
         """Clean up when the entity is removed."""
         if self._unsub:
-            self._unsub()
+            for unsub in self._unsub:
+                unsub()
             self._unsub = None
 
