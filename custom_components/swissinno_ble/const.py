@@ -1,3 +1,9 @@
+"""Constants for the unofficial Swissinno BLE integration.
+
+This hobby project is not affiliated with Swissinno AG and is provided without
+any guarantees. Swissinno is a trademark of its respective owner.
+"""
+
 DOMAIN = "swissinno_ble"
 
 # Manufacturer IDs for Swissinno devices

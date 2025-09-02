@@ -1,3 +1,9 @@
+"""Config flow for the unofficial Swissinno BLE integration.
+
+This hobby project is not affiliated with Swissinno AG and is provided without
+any guarantees. Swissinno is a trademark of its respective owner.
+"""
+
 import re
 
 import voluptuous as vol
@@ -43,7 +49,7 @@ class SwissinnoBLEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             {
                 vol.Required(
                     CONF_NAME,
-                    default=(self._discovery_info.name if self._discovery_info else "Swissinno Mouse Trap"),
+                    default=(self._discovery_info.name if self._discovery_info else "Mouse Trap"),
                 ): str,
                 vol.Required(
                     CONF_MAC,
@@ -67,7 +73,7 @@ class SwissinnoBLEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(format_mac(discovery_info.address), raise_on_progress=False)
         self._abort_if_unique_id_configured()
         self._discovery_info = discovery_info
-        self.context["title_placeholders"] = {"name": discovery_info.name or "Swissinno Mouse Trap"}
+        self.context["title_placeholders"] = {"name": discovery_info.name or "Mouse Trap"}
         return await self.async_step_user()
 
     @staticmethod

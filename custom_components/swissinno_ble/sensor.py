@@ -1,3 +1,9 @@
+"""Unofficial Swissinno BLE sensor for Home Assistant.
+
+This hobby project is not affiliated with Swissinno AG and is provided without
+any guarantees. Swissinno is a trademark of its respective owner.
+"""
+
 import logging
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.components.bluetooth import (
@@ -43,8 +49,8 @@ class SwissinnoBLESensor(SensorEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._address)},
             name=name,
-            manufacturer="Swissinno",
-            model="Swissinno Mouse Trap",
+            manufacturer="Swissinno (unofficial)",
+            model="Mouse Trap",
         )
         # Devices rotate their Bluetooth addresses for privacy which would make
         # an address based filter miss advertisements. Instead we match on the

@@ -1,3 +1,9 @@
+"""Unofficial Swissinno BLE reset button for Home Assistant.
+
+This hobby project is not affiliated with Swissinno AG and is provided without
+any guarantees. Swissinno is a trademark of its respective owner.
+"""
+
 import logging
 
 from homeassistant.components.button import ButtonEntity
@@ -38,8 +44,8 @@ class SwissinnoResetButton(ButtonEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self._address)},
             name=name,
-            manufacturer="Swissinno",
-            model="Swissinno Mouse Trap",
+            manufacturer="Swissinno (unofficial)",
+            model="Mouse Trap",
         )
 
     @property
@@ -64,7 +70,7 @@ class SwissinnoResetButton(ButtonEntity):
             msg = f"Bluetooth device with address {self._address} not found"
             _LOGGER.error(msg)
             await async_create_persistent_notification(
-                self.hass, msg, title="Swissinno Mouse Trap"
+                self.hass, msg, title="Mouse Trap"
             )
             return
 
@@ -76,6 +82,6 @@ class SwissinnoResetButton(ButtonEntity):
             msg = f"Failed to reset mouse trap {self._name}: {err}"
             _LOGGER.error(msg)
             await async_create_persistent_notification(
-                self.hass, msg, title="Swissinno Mouse Trap"
+                self.hass, msg, title="Mouse Trap"
             )
 

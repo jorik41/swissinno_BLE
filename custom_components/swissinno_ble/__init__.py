@@ -1,4 +1,8 @@
-"""Swissinno BLE integration."""
+"""Unofficial Swissinno BLE integration for Home Assistant.
+
+This hobby project is not affiliated with Swissinno AG and is provided without
+any guarantees. Swissinno is a trademark of its respective owner.
+"""
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
