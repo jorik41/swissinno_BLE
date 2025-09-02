@@ -64,7 +64,7 @@ async def async_setup_entry(
 
 def _parse_battery_raw(manufacturer_data: bytes) -> int | None:
     """Return the raw battery reading from manufacturer data."""
-    if len(manufacturer_data) != 9:
+    if len(manufacturer_data) < 9:
         _LOGGER.debug(
             "Unexpected manufacturer data length: %s", len(manufacturer_data)
         )
@@ -74,15 +74,6 @@ def _parse_battery_raw(manufacturer_data: bytes) -> int | None:
         _LOGGER.debug("Battery raw value %s outside expected range", raw)
         return None
     return raw
-
-
-def _matches_address(manufacturer_data: bytes, address: str) -> bool:
-    """Check if the manufacturer data embeds the expected address."""
-    if len(manufacturer_data) < 7:
-        return False
-    addr_bytes = bytes.fromhex(address.replace(":", ""))
-    segment = manufacturer_data[1:7]
-    return segment == addr_bytes or segment == addr_bytes[::-1]
 
 
 def _raw_to_voltage(raw: int) -> float:
@@ -154,13 +145,6 @@ class SwissinnoBLEEntity(SensorEntity):
             _LOGGER.debug(
                 "No manufacturer data with IDs %s found",
                 [f"0x{mid:04X}" for mid in MANUFACTURER_IDS],
-            )
-            return
-
-        if not _matches_address(manufacturer_data, self._address):
-            _LOGGER.debug(
-                "Manufacturer data does not match expected address %s",
-                self._address,
             )
             return
 
