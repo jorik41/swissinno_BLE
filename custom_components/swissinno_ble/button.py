@@ -1,6 +1,7 @@
 import logging
 
 from homeassistant.components.button import ButtonEntity
+from homeassistant.components.bluetooth import async_ble_device_from_address
 from homeassistant.components.persistent_notification import (
     async_create as async_create_persistent_notification,
 )
@@ -53,22 +54,28 @@ class SwissinnoResetButton(ButtonEntity):
 
     async def async_press(self):
         """Handle the button press."""
-        try:
-            from bleak import BleakClient
+        from bleak import BleakClient
+        from bleak.exc import BleakError
 
-            client = BleakClient(self._address)
-            try:
-                await client.connect()
+        device = await async_ble_device_from_address(
+            self.hass, self._address, connectable=True
+        )
+        if not device:
+            msg = f"Bluetooth device with address {self._address} not found"
+            _LOGGER.error(msg)
+            await async_create_persistent_notification(
+                self.hass, msg, title="Swissinno Mouse Trap"
+            )
+            return
+
+        try:
+            async with BleakClient(device) as client:
                 await client.write_gatt_char(RESET_CHAR_UUID, b"\x00")
                 _LOGGER.debug("Reset command sent to %s", self._address)
-            finally:
-                await client.disconnect()
-
-        except Exception as err:
-            _LOGGER.error("Error resetting the mouse trap: %s", err)
+        except BleakError as err:
+            msg = f"Failed to reset mouse trap {self._name}: {err}"
+            _LOGGER.error(msg)
             await async_create_persistent_notification(
-                self.hass,
-                f"Error resetting mouse trap {self._name}: {err}",
-                title="Swissinno Mouse Trap",
+                self.hass, msg, title="Swissinno Mouse Trap"
             )
 

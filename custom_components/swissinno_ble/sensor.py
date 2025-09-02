@@ -106,6 +106,11 @@ class SwissinnoBLESensor(SensorEntity):
 
         self._state = state
         self._last_seen = self._hass.loop.time()
+        if self.hass is None:
+            _LOGGER.debug(
+                "Entity not yet added to Home Assistant; skipping state update"
+            )
+            return
         self.async_write_ha_state()
 
     @property
