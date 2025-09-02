@@ -58,6 +58,7 @@ async def async_setup_entry(
         SwissinnoBLEStatusSensor(hass, address, name),
         SwissinnoBLEVoltageSensor(hass, address, name),
         SwissinnoBLEBatterySensor(hass, address, name, rechargeable),
+        SwissinnoBLERawBeaconSensor(hass, address, name),
     ]
     async_add_entities(sensors)
 
@@ -261,4 +262,20 @@ class SwissinnoBLEBatterySensor(SwissinnoBLEEntity):
     @property
     def native_value(self) -> int | None:
         return self._percentage
+
+
+class SwissinnoBLERawBeaconSensor(SwissinnoBLEEntity):
+    """Representation of the raw beacon data."""
+
+    def __init__(self, hass: HomeAssistant, address: str, name: str) -> None:
+        super().__init__(hass, address, name, "Raw Beacon", "raw_beacon")
+        self._attr_entity_registry_enabled_default = False
+        self._raw: str | None = None
+
+    def _handle_data(self, manufacturer_data: bytes) -> None:
+        self._raw = manufacturer_data.hex().upper()
+
+    @property
+    def native_value(self) -> str | None:
+        return self._raw
 
