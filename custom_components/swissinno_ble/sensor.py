@@ -65,15 +65,8 @@ async def async_setup_entry(
 def _parse_battery_raw(manufacturer_data: bytes) -> int | None:
     """Return the raw battery reading from manufacturer data."""
     if len(manufacturer_data) < 9:
-        _LOGGER.debug(
-            "Unexpected manufacturer data length: %s", len(manufacturer_data)
-        )
         return None
-    raw = int.from_bytes(manufacturer_data[7:9], "little")
-    if raw < 200 or raw > 600:
-        _LOGGER.debug("Battery raw value %s outside expected range", raw)
-        return None
-    return raw
+    return int.from_bytes(manufacturer_data[7:9], "little")
 
 
 def _raw_to_voltage(raw: int) -> float:
@@ -188,9 +181,8 @@ class SwissinnoBLEStatusSensor(SwissinnoBLEEntity):
         self._state: str | None = "Not triggered"
 
     def _handle_data(self, manufacturer_data: bytes) -> None:
-        raw = _parse_battery_raw(manufacturer_data)
-        if raw is None:
-            _LOGGER.debug("Skipping status update due to invalid battery data")
+        if len(manufacturer_data) < 1:
+            _LOGGER.debug("Manufacturer data is too short")
             return
 
         status_byte = manufacturer_data[0]
@@ -201,8 +193,7 @@ class SwissinnoBLEStatusSensor(SwissinnoBLEEntity):
         elif status_byte == 0x01:
             self._state = "Triggered"
         else:
-            _LOGGER.debug("Unexpected status byte: 0x%02X", status_byte)
-            return
+            self._state = f"Unknown status: 0x{status_byte:02X}"
 
     @property
     def native_value(self) -> str | None:
@@ -223,7 +214,7 @@ class SwissinnoBLEVoltageSensor(SwissinnoBLEEntity):
     def _handle_data(self, manufacturer_data: bytes) -> None:
         raw = _parse_battery_raw(manufacturer_data)
         if raw is None:
-            _LOGGER.debug("Invalid manufacturer data for voltage")
+            _LOGGER.debug("Manufacturer data is too short")
             return
         self._voltage = _raw_to_voltage(raw)
         _LOGGER.debug("Battery raw %s -> %.2f V", raw, self._voltage)
@@ -253,7 +244,7 @@ class SwissinnoBLEBatterySensor(SwissinnoBLEEntity):
     def _handle_data(self, manufacturer_data: bytes) -> None:
         raw = _parse_battery_raw(manufacturer_data)
         if raw is None:
-            _LOGGER.debug("Invalid manufacturer data for battery")
+            _LOGGER.debug("Manufacturer data is too short")
             return
         voltage = _raw_to_voltage(raw)
         min_v = (
