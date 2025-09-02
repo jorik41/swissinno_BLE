@@ -57,7 +57,7 @@ class SwissinnoResetButton(ButtonEntity):
         from bleak import BleakClient
         from bleak.exc import BleakError
 
-        device = async_ble_device_from_address(
+        device = await async_ble_device_from_address(
             self.hass, self._address, connectable=True
         )
         if not device:
