@@ -89,6 +89,9 @@ class SwissinnoBLEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 class SwissinnoBLEOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Swissinno BLE."""
 
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        self.config_entry = config_entry
+
     async def async_step_init(self, user_input=None):
         """Manage the options."""
         return await self.async_step_user()
@@ -100,9 +103,14 @@ class SwissinnoBLEOptionsFlow(config_entries.OptionsFlow):
 
         data_schema = vol.Schema(
             {
-                vol.Optional("update_interval", default=60): vol.All(
-                    vol.Coerce(int), vol.Range(min=30)
-                )
+                vol.Optional(
+                    "update_interval",
+                    default=self.config_entry.options.get("update_interval", 60),
+                ): vol.All(vol.Coerce(int), vol.Range(min=30)),
+                vol.Optional(
+                    "rechargeable_battery",
+                    default=self.config_entry.options.get("rechargeable_battery", False),
+                ): bool,
             }
         )
 

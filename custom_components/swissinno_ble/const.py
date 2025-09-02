@@ -13,8 +13,13 @@ MANUFACTURER_IDS = [0xBB0B, 0x0BBB]
 UNAVAILABLE_AFTER_SECS = 600  # 10 minutes
 
 # Battery voltage range used for percentage calculation
+# Default (alkaline/normal) batteries: 2.0 V -> 0%, 3.0 V -> 100%
 BATTERY_MIN_VOLTAGE = 2.0
-BATTERY_MAX_VOLTAGE = 3.2
+BATTERY_MAX_VOLTAGE = 3.0
+
+# Rechargeable batteries: 1.8 V -> 0%, 2.4 V -> 100%
+BATTERY_MIN_VOLTAGE_RECHARGEABLE = 1.8
+BATTERY_MAX_VOLTAGE_RECHARGEABLE = 2.4
 
 # GATT characteristic holding the trap name
 NAME_CHAR_UUID = "02ecc6cd-2b43-4db5-96e6-ede92cf8778b"
