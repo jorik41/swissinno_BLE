@@ -64,9 +64,25 @@ async def async_setup_entry(
 
 def _parse_battery_raw(manufacturer_data: bytes) -> int | None:
     """Return the raw battery reading from manufacturer data."""
-    if len(manufacturer_data) < 9:
+    if len(manufacturer_data) != 9:
+        _LOGGER.debug(
+            "Unexpected manufacturer data length: %s", len(manufacturer_data)
+        )
         return None
-    return int.from_bytes(manufacturer_data[7:9], "little")
+    raw = int.from_bytes(manufacturer_data[7:9], "little")
+    if raw < 200 or raw > 600:
+        _LOGGER.debug("Battery raw value %s outside expected range", raw)
+        return None
+    return raw
+
+
+def _matches_address(manufacturer_data: bytes, address: str) -> bool:
+    """Check if the manufacturer data embeds the expected address."""
+    if len(manufacturer_data) < 7:
+        return False
+    addr_bytes = bytes.fromhex(address.replace(":", ""))
+    segment = manufacturer_data[1:7]
+    return segment == addr_bytes or segment == addr_bytes[::-1]
 
 
 def _raw_to_voltage(raw: int) -> float:
@@ -141,6 +157,13 @@ class SwissinnoBLEEntity(SensorEntity):
             )
             return
 
+        if not _matches_address(manufacturer_data, self._address):
+            _LOGGER.debug(
+                "Manufacturer data does not match expected address %s",
+                self._address,
+            )
+            return
+
         self._handle_data(manufacturer_data)
         self._last_seen = self._hass.loop.time()
         if self.hass is None:
@@ -181,8 +204,9 @@ class SwissinnoBLEStatusSensor(SwissinnoBLEEntity):
         self._state: str | None = "Not triggered"
 
     def _handle_data(self, manufacturer_data: bytes) -> None:
-        if len(manufacturer_data) < 1:
-            _LOGGER.debug("Manufacturer data is too short")
+        raw = _parse_battery_raw(manufacturer_data)
+        if raw is None:
+            _LOGGER.debug("Skipping status update due to invalid battery data")
             return
 
         status_byte = manufacturer_data[0]
@@ -193,7 +217,8 @@ class SwissinnoBLEStatusSensor(SwissinnoBLEEntity):
         elif status_byte == 0x01:
             self._state = "Triggered"
         else:
-            self._state = f"Unknown status: 0x{status_byte:02X}"
+            _LOGGER.debug("Unexpected status byte: 0x%02X", status_byte)
+            return
 
     @property
     def native_value(self) -> str | None:
@@ -214,7 +239,7 @@ class SwissinnoBLEVoltageSensor(SwissinnoBLEEntity):
     def _handle_data(self, manufacturer_data: bytes) -> None:
         raw = _parse_battery_raw(manufacturer_data)
         if raw is None:
-            _LOGGER.debug("Manufacturer data is too short")
+            _LOGGER.debug("Invalid manufacturer data for voltage")
             return
         self._voltage = _raw_to_voltage(raw)
         _LOGGER.debug("Battery raw %s -> %.2f V", raw, self._voltage)
@@ -244,7 +269,7 @@ class SwissinnoBLEBatterySensor(SwissinnoBLEEntity):
     def _handle_data(self, manufacturer_data: bytes) -> None:
         raw = _parse_battery_raw(manufacturer_data)
         if raw is None:
-            _LOGGER.debug("Manufacturer data is too short")
+            _LOGGER.debug("Invalid manufacturer data for battery")
             return
         voltage = _raw_to_voltage(raw)
         min_v = (
