@@ -1,8 +1,15 @@
-# Swissinno BLE
+# Swissinno BLE (Unofficial)
 
-Home Assistant integration for [Swissinno](https://www.swissinno.com/) Bluetooth
-mouse traps. The integration listens for Bluetooth advertisements to monitor the
-trap status and provides a button to remotely reset the trap.
+![Project Logo](images/project.svg)
+
+**Disclaimer:** This is a hobby project and is not affiliated with, endorsed by,
+or supported by Swissinno AG. Swissinno is a trademark of its respective owner,
+and the name is used here solely for identification purposes. No guarantees or
+warranties are provided.
+
+Home Assistant integration for Swissinno Bluetooth mouse traps. The integration
+listens for Bluetooth advertisements to monitor the trap status and provides a
+button to remotely reset the trap.
 
 ## Features
 
@@ -15,7 +22,7 @@ trap status and provides a button to remotely reset the trap.
 ### HACS (recommended)
 
 1. Add this repository as a custom repository in HACS.
-2. Install the **Swissinno BLE** integration from HACS.
+2. Install the **Swissinno BLE (Unofficial)** integration from HACS.
 3. Restart Home Assistant.
 
 ### Manual
@@ -27,7 +34,7 @@ trap status and provides a button to remotely reset the trap.
 ## Configuration
 
 1. In Home Assistant go to **Settings → Devices & services**.
-2. Click **Add Integration** and search for "Swissinno BLE".
+2. Click **Add Integration** and search for "Swissinno BLE (Unofficial)".
 3. Enter the name and MAC address of your trap.
 
 ## BLE details
