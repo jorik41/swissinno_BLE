@@ -22,7 +22,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, RESET_CHAR_UUID
+from .const import DOMAIN, MANUFACTURER_IDS, RESET_CHAR_UUID
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -91,24 +91,49 @@ class SwissinnoResetButton(ButtonEntity):
                 _LOGGER.debug(
                     "Device %s not found in cache, attempting rediscovery", self._address
                 )
-                try:
-                    service_info = await async_process_advertisements(
-                        self.hass,
-                        lambda si: True,
-                        BluetoothCallbackMatcher(address=self._address),
-                        BluetoothScanningMode.ACTIVE,
-                        5,
-                    )
-                except asyncio.TimeoutError:
-                    service_info = None
-                if service_info:
-                    device = service_info.device
+                for manufacturer_id in MANUFACTURER_IDS:
                     _LOGGER.debug(
-                        "Rediscovered device with address %s", self._address
+                        "Scanning for manufacturer ID 0x%04X", manufacturer_id
                     )
+                    try:
+                        service_info = await async_process_advertisements(
+                            self.hass,
+                            lambda si: bool(
+                                si.manufacturer_data.get(manufacturer_id)
+                            ),
+                            BluetoothCallbackMatcher(manufacturer_id=manufacturer_id),
+                            BluetoothScanningMode.ACTIVE,
+                            5,
+                        )
+                    except asyncio.TimeoutError:
+                        _LOGGER.debug(
+                            "No advertisement received for manufacturer ID 0x%04X",
+                            manufacturer_id,
+                        )
+                        continue
+                    manufacturer_data = service_info.manufacturer_data.get(
+                        manufacturer_id
+                    )
+                    if not manufacturer_data:
+                        _LOGGER.debug(
+                            "Advertisement for manufacturer ID 0x%04X lacked data",
+                            manufacturer_id,
+                        )
+                        continue
+                    device = service_info.device
+                    self._address = device.address.lower()
+                    _LOGGER.debug(
+                        "Rediscovered device with address %s via manufacturer ID 0x%04X",
+                        self._address,
+                        manufacturer_id,
+                    )
+                    break
 
             if not device:
-                msg = f"Bluetooth device with address {self._address} not found"
+                msg = (
+                    f"Bluetooth device with address {self._address} not found and"
+                    " rediscovery by manufacturer ID failed"
+                )
                 _LOGGER.error(msg)
                 await async_create_persistent_notification(
                     self.hass, msg, title="Mouse Trap"
