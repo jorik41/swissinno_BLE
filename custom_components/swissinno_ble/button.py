@@ -98,7 +98,9 @@ class SwissinnoResetButton(ButtonEntity):
                     try:
                         service_info = await async_process_advertisements(
                             self.hass,
-                            lambda _: True,
+                            lambda si: bool(
+                                si.manufacturer_data.get(manufacturer_id)
+                            ),
                             BluetoothCallbackMatcher(manufacturer_id=manufacturer_id),
                             BluetoothScanningMode.ACTIVE,
                             15,
