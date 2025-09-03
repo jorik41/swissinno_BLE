@@ -107,7 +107,10 @@ class SwissinnoBLEEntity(SensorEntity):
             async_register_callback(
                 hass,
                 self._async_handle_ble_event,
-                BluetoothCallbackMatcher(manufacturer_id=manufacturer_id),
+                BluetoothCallbackMatcher(
+                    address=address,
+                    manufacturer_id=manufacturer_id,
+                ),
                 BluetoothScanningMode.ACTIVE,
             )
             for manufacturer_id in MANUFACTURER_IDS
@@ -120,6 +123,9 @@ class SwissinnoBLEEntity(SensorEntity):
     ) -> None:
         """Process a Bluetooth event."""
         _LOGGER.debug("Advertisement from %s: %s", service_info.address, service_info)
+
+        if service_info.address.lower() != self._address:
+            return
 
         manufacturer_data = None
         for manufacturer_id in MANUFACTURER_IDS:
