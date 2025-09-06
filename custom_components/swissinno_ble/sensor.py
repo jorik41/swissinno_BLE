@@ -108,7 +108,6 @@ class SwissinnoBLEEntity(SensorEntity):
                 hass,
                 self._async_handle_ble_event,
                 BluetoothCallbackMatcher(
-                    address=address,
                     manufacturer_id=manufacturer_id,
                 ),
                 BluetoothScanningMode.ACTIVE,
@@ -124,6 +123,8 @@ class SwissinnoBLEEntity(SensorEntity):
         """Process a Bluetooth event."""
         _LOGGER.debug("Advertisement from %s: %s", service_info.address, service_info)
 
+        # Ignore advertisements from other devices; the matcher subscribes
+        # based solely on manufacturer ID
         if service_info.address.lower() != self._address:
             return
 
