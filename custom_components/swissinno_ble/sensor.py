@@ -120,7 +120,7 @@ class SwissinnoBLEEntity(SensorEntity):
                 BluetoothCallbackMatcher(
                     manufacturer_id=manufacturer_id,
                 ),
-                BluetoothScanningMode.ACTIVE,
+                BluetoothScanningMode.PASSIVE,
             )
             for manufacturer_id in MANUFACTURER_IDS
         ]
@@ -218,7 +218,7 @@ class SwissinnoBLEEntity(SensorEntity):
                     BluetoothCallbackMatcher(
                         address=self._address, manufacturer_id=manufacturer_id
                     ),
-                    BluetoothScanningMode.ACTIVE,
+                    BluetoothScanningMode.PASSIVE,
                     15,
                 )
             except asyncio.TimeoutError:
