@@ -7,6 +7,7 @@ any guarantees. Swissinno is a trademark of its respective owner.
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
 from homeassistant.components.bluetooth import (
     BluetoothCallbackMatcher,
@@ -58,6 +59,7 @@ async def async_setup_entry(
         SwissinnoBLEStatusSensor(hass, address, name),
         SwissinnoBLEVoltageSensor(hass, address, name),
         SwissinnoBLEBatterySensor(hass, address, name, rechargeable),
+        SwissinnoBLELastUpdateSensor(hass, address, name),
         SwissinnoBLERawBeaconSensor(hass, address, name),
     ]
     async_add_entities(sensors)
@@ -115,6 +117,7 @@ class SwissinnoBLEEntity(SensorEntity):
             for manufacturer_id in MANUFACTURER_IDS
         ]
         self._last_seen: float | None = self._hass.loop.time()
+        self._last_seen_datetime: datetime | None = datetime.utcnow()
 
     @callback
     def _async_handle_ble_event(
@@ -147,6 +150,7 @@ class SwissinnoBLEEntity(SensorEntity):
 
         self._handle_data(manufacturer_data)
         self._last_seen = self._hass.loop.time()
+        self._last_seen_datetime = datetime.utcnow()
         if self.hass is None:
             _LOGGER.debug(
                 "Entity not yet added to Home Assistant; skipping state update"
@@ -285,4 +289,19 @@ class SwissinnoBLERawBeaconSensor(SwissinnoBLEEntity):
     @property
     def native_value(self) -> str | None:
         return self._raw
+
+
+class SwissinnoBLELastUpdateSensor(SwissinnoBLEEntity):
+    """Representation of the last update time."""
+
+    def __init__(self, hass: HomeAssistant, address: str, name: str) -> None:
+        super().__init__(hass, address, name, "Last Update", "last_update")
+        self._attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def _handle_data(self, manufacturer_data: bytes) -> None:
+        """No additional data processing required."""
+
+    @property
+    def native_value(self) -> datetime | None:
+        return self._last_seen_datetime
 
