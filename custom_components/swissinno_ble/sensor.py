@@ -9,6 +9,8 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
+from homeassistant.util import dt as dt_util
+
 from homeassistant.components.bluetooth import (
     BluetoothCallbackMatcher,
     BluetoothChange,
@@ -117,7 +119,7 @@ class SwissinnoBLEEntity(SensorEntity):
             for manufacturer_id in MANUFACTURER_IDS
         ]
         self._last_seen: float | None = self._hass.loop.time()
-        self._last_seen_datetime: datetime | None = datetime.utcnow()
+        self._last_seen_datetime: datetime | None = dt_util.utcnow()
 
     @callback
     def _async_handle_ble_event(
@@ -150,7 +152,7 @@ class SwissinnoBLEEntity(SensorEntity):
 
         self._handle_data(manufacturer_data)
         self._last_seen = self._hass.loop.time()
-        self._last_seen_datetime = datetime.utcnow()
+        self._last_seen_datetime = dt_util.utcnow()
         if self.hass is None:
             _LOGGER.debug(
                 "Entity not yet added to Home Assistant; skipping state update"
