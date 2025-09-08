@@ -118,7 +118,7 @@ class SwissinnoBLEEntity(SensorEntity):
                 hass,
                 self._async_handle_ble_event,
                 BluetoothCallbackMatcher(address=self._address),
-                BluetoothScanningMode.ACTIVE,
+                BluetoothScanningMode.PASSIVE,
             )
         ]
         self._last_seen: float | None = self._hass.loop.time()
@@ -208,9 +208,10 @@ class SwissinnoBLEEntity(SensorEntity):
         try:
             service_info = await async_process_advertisements(
                 self._hass,
-                lambda si: si.address.lower() == self._address,
+                lambda si: si.address.lower() == self._address
+                and bool(si.manufacturer_data),
                 BluetoothCallbackMatcher(address=self._address),
-                BluetoothScanningMode.ACTIVE,
+                BluetoothScanningMode.PASSIVE,
                 15,
             )
         except asyncio.TimeoutError:
