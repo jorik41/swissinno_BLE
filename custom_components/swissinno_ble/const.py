@@ -6,7 +6,7 @@ any guarantees. Swissinno is a trademark of its respective owner.
 
 DOMAIN = "swissinno_ble"
 
-# Manufacturer IDs for Swissinno devices
+# Manufacturer IDs for Swissinno devices (used for discovery only)
 MANUFACTURER_IDS = [0xBB0B, 0x0BBB]
 
 # Time in seconds after which the sensor is marked as unavailable

@@ -44,7 +44,6 @@ from .const import (
     BATTERY_MIN_VOLTAGE,
     BATTERY_MIN_VOLTAGE_RECHARGEABLE,
     DOMAIN,
-    MANUFACTURER_IDS,
     UNAVAILABLE_AFTER_SECS,
 )
 
@@ -135,22 +134,11 @@ class SwissinnoBLEEntity(SensorEntity):
     ) -> None:
         """Process a Bluetooth event."""
         _LOGGER.debug("Advertisement from %s: %s", service_info.address, service_info)
-
-        manufacturer_data = None
-        for manufacturer_id in MANUFACTURER_IDS:
-            data = service_info.manufacturer_data.get(manufacturer_id)
-            if data:
-                manufacturer_data = data
-                _LOGGER.debug(
-                    "Found manufacturer data with ID 0x%04X", manufacturer_id
-                )
-                break
-
+        manufacturer_data = next(
+            iter(service_info.manufacturer_data.values()), None
+        )
         if not manufacturer_data:
-            _LOGGER.debug(
-                "No manufacturer data with IDs %s found",
-                [f"0x{mid:04X}" for mid in MANUFACTURER_IDS],
-            )
+            _LOGGER.debug("No manufacturer data found in advertisement")
             return
         if service_info.address.lower() != self._address:
             _LOGGER.debug(
@@ -231,13 +219,9 @@ class SwissinnoBLEEntity(SensorEntity):
             )
             return
 
-        manufacturer_data = None
-        for manufacturer_id in MANUFACTURER_IDS:
-            data = service_info.manufacturer_data.get(manufacturer_id)
-            if data:
-                manufacturer_data = data
-                break
-
+        manufacturer_data = next(
+            iter(service_info.manufacturer_data.values()), None
+        )
         if not manufacturer_data:
             _LOGGER.debug(
                 "Advertisement from %s lacked manufacturer data", self._address,
