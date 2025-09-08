@@ -17,6 +17,7 @@ from homeassistant.components.bluetooth import (
     BluetoothChange,
     BluetoothScanningMode,
     BluetoothServiceInfoBleak,
+    async_last_service_info,
     async_process_advertisements,
     async_register_callback,
 )
@@ -120,12 +121,13 @@ class SwissinnoBLEEntity(SensorEntity):
                 BluetoothCallbackMatcher(
                     manufacturer_id=manufacturer_id,
                 ),
-                BluetoothScanningMode.PASSIVE,
+                BluetoothScanningMode.ACTIVE,
             )
             for manufacturer_id in MANUFACTURER_IDS
         ]
         self._last_seen: float | None = self._hass.loop.time()
         self._last_seen_datetime: datetime | None = dt_util.utcnow()
+        self._last_service_info_time: float | None = None
         self._update_interval = timedelta(seconds=update_interval)
         self._unsub_interval = None
 
@@ -162,7 +164,8 @@ class SwissinnoBLEEntity(SensorEntity):
 
         self._handle_data(manufacturer_data)
         self._last_seen = self._hass.loop.time()
-        self._last_seen_datetime = dt_util.utcnow()
+        self._last_seen_datetime = dt_util.utc_from_timestamp(service_info.time)
+        self._last_service_info_time = service_info.time
         if self.hass is None:
             _LOGGER.debug(
                 "Entity not yet added to Home Assistant; skipping state update",
@@ -209,6 +212,14 @@ class SwissinnoBLEEntity(SensorEntity):
 
     async def _async_request_update(self) -> None:
         """Request an advertisement and process the data."""
+        info = async_last_service_info(self._hass, self._address)
+        if info and info.time != self._last_service_info_time:
+            self._last_seen = self._hass.loop.time()
+            self._last_seen_datetime = dt_util.utc_from_timestamp(info.time)
+            self._last_service_info_time = info.time
+            if self.hass is not None:
+                self.async_write_ha_state()
+
         for manufacturer_id in MANUFACTURER_IDS:
             try:
                 service_info = await async_process_advertisements(
@@ -218,7 +229,7 @@ class SwissinnoBLEEntity(SensorEntity):
                     BluetoothCallbackMatcher(
                         address=self._address, manufacturer_id=manufacturer_id
                     ),
-                    BluetoothScanningMode.PASSIVE,
+                    BluetoothScanningMode.ACTIVE,
                     15,
                 )
             except asyncio.TimeoutError:
@@ -236,7 +247,8 @@ class SwissinnoBLEEntity(SensorEntity):
                 continue
             self._handle_data(manufacturer_data)
             self._last_seen = self._hass.loop.time()
-            self._last_seen_datetime = dt_util.utcnow()
+            self._last_seen_datetime = dt_util.utc_from_timestamp(service_info.time)
+            self._last_service_info_time = service_info.time
             if self.hass is not None:
                 self.async_write_ha_state()
 
