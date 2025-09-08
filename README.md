@@ -16,6 +16,7 @@ button to remotely reset the trap.
 - Detects trap state via Bluetooth manufacturer data
 - Reset button for supported traps
 - Config flow for easy setup
+- "Last Update" sensor showing when data was last received
 
 ## Installation
 
