@@ -202,7 +202,7 @@ class SwissinnoBLEEntity(SensorEntity):
         self._unsub_interval = async_track_time_interval(
             self._hass, _refresh, self._update_interval
         )
-        await self._async_request_update()
+        self._hass.async_create_task(self._async_request_update())
 
     async def _async_request_update(self) -> None:
         """Request an advertisement and process the data."""
@@ -306,12 +306,12 @@ class SwissinnoBLEBatterySensor(SwissinnoBLEEntity):
         rechargeable: bool,
         update_interval: int,
     ) -> None:
+        self._rechargeable = rechargeable
+        self._percentage: int | None = None
         super().__init__(hass, address, name, "Battery", "battery", update_interval)
         self._attr_device_class = SensorDeviceClass.BATTERY
         self._attr_native_unit_of_measurement = PERCENTAGE
         self._attr_state_class = SensorStateClass.MEASUREMENT
-        self._percentage: int | None = None
-        self._rechargeable = rechargeable
 
     def _handle_data(self, manufacturer_data: bytes) -> None:
         raw = _parse_battery_raw(manufacturer_data)
