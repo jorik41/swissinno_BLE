@@ -118,12 +118,9 @@ class SwissinnoBLEEntity(SensorEntity):
             async_register_callback(
                 hass,
                 self._async_handle_ble_event,
-                BluetoothCallbackMatcher(
-                    manufacturer_id=manufacturer_id,
-                ),
+                BluetoothCallbackMatcher(address=self._address),
                 BluetoothScanningMode.ACTIVE,
             )
-            for manufacturer_id in MANUFACTURER_IDS
         ]
         self._last_seen: float | None = self._hass.loop.time()
         self._last_seen_datetime: datetime | None = dt_util.utcnow()
@@ -220,37 +217,39 @@ class SwissinnoBLEEntity(SensorEntity):
             if self.hass is not None:
                 self.async_write_ha_state()
 
+        try:
+            service_info = await async_process_advertisements(
+                self._hass,
+                lambda si: si.address.lower() == self._address,
+                BluetoothCallbackMatcher(address=self._address),
+                BluetoothScanningMode.ACTIVE,
+                15,
+            )
+        except asyncio.TimeoutError:
+            _LOGGER.debug(
+                "No advertisement received from %s", self._address,
+            )
+            return
+
+        manufacturer_data = None
         for manufacturer_id in MANUFACTURER_IDS:
-            try:
-                service_info = await async_process_advertisements(
-                    self._hass,
-                    lambda si: si.address.lower() == self._address
-                    and bool(si.manufacturer_data.get(manufacturer_id)),
-                    BluetoothCallbackMatcher(
-                        address=self._address, manufacturer_id=manufacturer_id
-                    ),
-                    BluetoothScanningMode.ACTIVE,
-                    15,
-                )
-            except asyncio.TimeoutError:
-                _LOGGER.debug(
-                    "No advertisement received for manufacturer ID 0x%04X",
-                    manufacturer_id,
-                )
-                continue
-            manufacturer_data = service_info.manufacturer_data.get(manufacturer_id)
-            if not manufacturer_data:
-                _LOGGER.debug(
-                    "Advertisement for manufacturer ID 0x%04X lacked data",
-                    manufacturer_id,
-                )
-                continue
-            self._handle_data(manufacturer_data)
-            self._last_seen = self._hass.loop.time()
-            self._last_seen_datetime = dt_util.utc_from_timestamp(service_info.time)
-            self._last_service_info_time = service_info.time
-            if self.hass is not None:
-                self.async_write_ha_state()
+            data = service_info.manufacturer_data.get(manufacturer_id)
+            if data:
+                manufacturer_data = data
+                break
+
+        if not manufacturer_data:
+            _LOGGER.debug(
+                "Advertisement from %s lacked manufacturer data", self._address,
+            )
+            return
+
+        self._handle_data(manufacturer_data)
+        self._last_seen = self._hass.loop.time()
+        self._last_seen_datetime = dt_util.utc_from_timestamp(service_info.time)
+        self._last_service_info_time = service_info.time
+        if self.hass is not None:
+            self.async_write_ha_state()
 
 
 class SwissinnoBLEStatusSensor(SwissinnoBLEEntity):
