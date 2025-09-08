@@ -78,18 +78,6 @@ def _parse_battery_raw(manufacturer_data: bytes) -> int | None:
     return int.from_bytes(manufacturer_data[7:9], "little")
 
 
-def _parse_identifier(manufacturer_data: bytes) -> str | None:
-    """Extract the unique device identifier from manufacturer data.
-
-    The identifier is taken from bytes 1-6 of the manufacturer data payload
-    (the byte after the status flag). This value remains constant even when the
-    device's Bluetooth address changes.
-    """
-    if len(manufacturer_data) < 7:
-        return None
-    return manufacturer_data[1:7].hex().upper()
-
-
 def _raw_to_voltage(raw: int) -> float:
     """Convert the raw battery reading to volts."""
     return round((raw - 253) / 72, 2)
@@ -117,10 +105,14 @@ class SwissinnoBLEEntity(SensorEntity):
         self._address = address
         self._device_name = name
         self._name = f"{name} {name_suffix}"
-        self._identifier: str | None = None
         self._attr_should_poll = False
         self._attr_unique_id = f"{self._address}_{unique_suffix}"
-        self._update_device_info()
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, self._address)},
+            name=self._device_name,
+            manufacturer="Swissinno (unofficial)",
+            model="Mouse Trap",
+        )
         self._unsub = [
             async_register_callback(
                 hass,
@@ -136,18 +128,6 @@ class SwissinnoBLEEntity(SensorEntity):
         self._last_seen_datetime: datetime | None = dt_util.utcnow()
         self._update_interval = timedelta(seconds=update_interval)
         self._unsub_interval = None
-
-    def _update_device_info(self) -> None:
-        """Update the device information with current identifiers."""
-        identifiers = {(DOMAIN, self._address)}
-        if self._identifier:
-            identifiers.add((DOMAIN, self._identifier))
-        self._attr_device_info = DeviceInfo(
-            identifiers=identifiers,
-            name=self._device_name,
-            manufacturer="Swissinno (unofficial)",
-            model="Mouse Trap",
-        )
 
     
     @callback
@@ -173,35 +153,10 @@ class SwissinnoBLEEntity(SensorEntity):
                 [f"0x{mid:04X}" for mid in MANUFACTURER_IDS],
             )
             return
-
-        identifier = _parse_identifier(manufacturer_data)
-        if identifier is None:
-            _LOGGER.debug("Manufacturer data is too short for identifier")
-            return
-
-        if self._identifier is None:
-            self._identifier = identifier
-            _LOGGER.debug("Stored identifier %s", self._identifier)
-            self._update_device_info()
-
         if service_info.address.lower() != self._address:
-            if identifier != self._identifier:
-                _LOGGER.debug(
-                    "Ignoring advertisement from %s with mismatched identifier %s",
-                    service_info.address,
-                    identifier,
-                )
-                return
             _LOGGER.debug(
-                "Updating address from %s to %s", self._address, service_info.address
-            )
-            self._address = service_info.address.lower()
-            self._update_device_info()
-        elif identifier != self._identifier:
-            _LOGGER.debug(
-                "Ignoring advertisement from %s with mismatched identifier %s",
+                "Ignoring advertisement from %s with mismatched address",
                 service_info.address,
-                identifier,
             )
             return
 
