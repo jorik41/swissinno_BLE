@@ -5,6 +5,7 @@ any guarantees. Swissinno is a trademark of its respective owner.
 """
 
 DOMAIN = "swissinno_ble"
+LOG_FILE = f"{DOMAIN}.log"
 
 # Manufacturer IDs for Swissinno devices (used for discovery only)
 MANUFACTURER_IDS = [0xBB0B, 0x0BBB]
