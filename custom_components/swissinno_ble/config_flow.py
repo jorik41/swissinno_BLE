@@ -111,6 +111,10 @@ class SwissinnoBLEOptionsFlow(config_entries.OptionsFlow):
                     "rechargeable_battery",
                     default=self.config_entry.options.get("rechargeable_battery", False),
                 ): bool,
+                vol.Optional(
+                    "debug_logging",
+                    default=self.config_entry.options.get("debug_logging", False),
+                ): bool,
             }
         )
 
