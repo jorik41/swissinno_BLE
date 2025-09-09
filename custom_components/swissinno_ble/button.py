@@ -96,6 +96,10 @@ class SwissinnoResetButton(ButtonEntity):
                 async with BleakClient(device) as client:
                     await client.write_gatt_char(RESET_CHAR_UUID, b"\x00")
                     _LOGGER.debug("Reset command sent to %s", self._address)
+                    # Give the trap a moment to process the reset command before
+                    # re-enabling the button. Without this delay the reset may not
+                    # take effect reliably.
+                    await asyncio.sleep(1)
             except (BleakError, OSError) as err:
                 msg = f"Failed to reset mouse trap {self._name}: {err}"
                 _LOGGER.error(msg)
