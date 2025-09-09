@@ -4,6 +4,8 @@ This hobby project is not affiliated with Swissinno AG and is provided without
 any guarantees. Swissinno is a trademark of its respective owner.
 """
 
+import logging
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import Platform
@@ -21,6 +23,9 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Swissinno BLE from a config entry."""
+    if entry.options.get("debug_logging"):
+        logging.getLogger(__package__).setLevel(logging.DEBUG)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

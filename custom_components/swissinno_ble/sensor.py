@@ -61,12 +61,13 @@ async def async_setup_entry(
 
     rechargeable = config_entry.options.get("rechargeable_battery", False)
     update_interval = config_entry.options.get("update_interval", 60)
+    debug_logging = config_entry.options.get("debug_logging", False)
     sensors = [
-        SwissinnoBLEStatusSensor(hass, address, name, update_interval),
-        SwissinnoBLEVoltageSensor(hass, address, name, update_interval),
-        SwissinnoBLEBatterySensor(hass, address, name, rechargeable, update_interval),
-        SwissinnoBLELastUpdateSensor(hass, address, name, update_interval),
-        SwissinnoBLERawBeaconSensor(hass, address, name, update_interval),
+        SwissinnoBLEStatusSensor(hass, address, name, debug_logging, update_interval),
+        SwissinnoBLEVoltageSensor(hass, address, name, debug_logging, update_interval),
+        SwissinnoBLEBatterySensor(hass, address, name, rechargeable, debug_logging, update_interval),
+        SwissinnoBLELastUpdateSensor(hass, address, name, debug_logging, update_interval),
+        SwissinnoBLERawBeaconSensor(hass, address, name, debug_logging, update_interval),
     ]
     async_add_entities(sensors)
 
@@ -99,6 +100,7 @@ class SwissinnoBLEEntity(SensorEntity):
         name: str,
         name_suffix: str,
         unique_suffix: str,
+        debug_logging: bool,
         update_interval: int,
     ) -> None:
         self._hass = hass
@@ -126,6 +128,7 @@ class SwissinnoBLEEntity(SensorEntity):
         self._last_service_info_time: float | None = None
         self._update_interval = timedelta(seconds=update_interval)
         self._unsub_interval = None
+        self._debug_logging = debug_logging
 
     
     @callback
@@ -146,8 +149,20 @@ class SwissinnoBLEEntity(SensorEntity):
                 service_info.address,
             )
             return
+        if self._debug_logging:
+            _LOGGER.debug(
+                "Manufacturer data from %s: %s",
+                service_info.address,
+                manufacturer_data.hex().upper(),
+            )
 
         self._handle_data(manufacturer_data)
+        if self._debug_logging:
+            _LOGGER.debug(
+                "%s processed data -> %s",
+                self._name,
+                self.native_value,
+            )
         self._last_seen = self._hass.loop.time()
         self._last_seen_datetime = dt_util.utc_from_timestamp(service_info.time)
         self._last_service_info_time = service_info.time
@@ -228,8 +243,20 @@ class SwissinnoBLEEntity(SensorEntity):
                 "Advertisement from %s lacked manufacturer data", self._address,
             )
             return
+        if self._debug_logging:
+            _LOGGER.debug(
+                "Manufacturer data from %s during poll: %s",
+                service_info.address,
+                manufacturer_data.hex().upper(),
+            )
 
         self._handle_data(manufacturer_data)
+        if self._debug_logging:
+            _LOGGER.debug(
+                "%s processed polled data -> %s",
+                self._name,
+                self.native_value,
+            )
         self._last_seen = self._hass.loop.time()
         self._last_seen_datetime = dt_util.utc_from_timestamp(service_info.time)
         self._last_service_info_time = service_info.time
@@ -241,9 +268,16 @@ class SwissinnoBLEStatusSensor(SwissinnoBLEEntity):
     """Representation of the trap status."""
 
     def __init__(
-        self, hass: HomeAssistant, address: str, name: str, update_interval: int
+        self,
+        hass: HomeAssistant,
+        address: str,
+        name: str,
+        debug_logging: bool,
+        update_interval: int,
     ) -> None:
-        super().__init__(hass, address, name, "Status", "status", update_interval)
+        super().__init__(
+            hass, address, name, "Status", "status", debug_logging, update_interval
+        )
         self._state: str | None = "Not triggered"
 
     def _handle_data(self, manufacturer_data: bytes) -> None:
@@ -270,10 +304,21 @@ class SwissinnoBLEVoltageSensor(SwissinnoBLEEntity):
     """Representation of the trap battery voltage."""
 
     def __init__(
-        self, hass: HomeAssistant, address: str, name: str, update_interval: int
+        self,
+        hass: HomeAssistant,
+        address: str,
+        name: str,
+        debug_logging: bool,
+        update_interval: int,
     ) -> None:
         super().__init__(
-            hass, address, name, "Battery Voltage", "voltage", update_interval
+            hass,
+            address,
+            name,
+            "Battery Voltage",
+            "voltage",
+            debug_logging,
+            update_interval,
         )
         self._attr_device_class = SensorDeviceClass.VOLTAGE
         self._attr_native_unit_of_measurement = UnitOfElectricPotential.VOLT
@@ -303,11 +348,20 @@ class SwissinnoBLEBatterySensor(SwissinnoBLEEntity):
         address: str,
         name: str,
         rechargeable: bool,
+        debug_logging: bool,
         update_interval: int,
     ) -> None:
         self._rechargeable = rechargeable
         self._percentage: int | None = None
-        super().__init__(hass, address, name, "Battery", "battery", update_interval)
+        super().__init__(
+            hass,
+            address,
+            name,
+            "Battery",
+            "battery",
+            debug_logging,
+            update_interval,
+        )
         self._attr_device_class = SensorDeviceClass.BATTERY
         self._attr_native_unit_of_measurement = PERCENTAGE
         self._attr_state_class = SensorStateClass.MEASUREMENT
@@ -342,9 +396,22 @@ class SwissinnoBLERawBeaconSensor(SwissinnoBLEEntity):
     """Representation of the raw beacon data."""
 
     def __init__(
-        self, hass: HomeAssistant, address: str, name: str, update_interval: int
+        self,
+        hass: HomeAssistant,
+        address: str,
+        name: str,
+        debug_logging: bool,
+        update_interval: int,
     ) -> None:
-        super().__init__(hass, address, name, "Raw Beacon", "raw_beacon", update_interval)
+        super().__init__(
+            hass,
+            address,
+            name,
+            "Raw Beacon",
+            "raw_beacon",
+            debug_logging,
+            update_interval,
+        )
         self._attr_entity_registry_enabled_default = False
         self._raw: str | None = None
 
@@ -360,9 +427,22 @@ class SwissinnoBLELastUpdateSensor(SwissinnoBLEEntity):
     """Representation of the last update time."""
 
     def __init__(
-        self, hass: HomeAssistant, address: str, name: str, update_interval: int
+        self,
+        hass: HomeAssistant,
+        address: str,
+        name: str,
+        debug_logging: bool,
+        update_interval: int,
     ) -> None:
-        super().__init__(hass, address, name, "Last Update", "last_update", update_interval)
+        super().__init__(
+            hass,
+            address,
+            name,
+            "Last Update",
+            "last_update",
+            debug_logging,
+            update_interval,
+        )
         self._attr_device_class = SensorDeviceClass.TIMESTAMP
 
     def _handle_data(self, manufacturer_data: bytes) -> None:
