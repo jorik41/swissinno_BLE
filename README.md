@@ -36,7 +36,7 @@ button to remotely reset the trap.
 
 1. In Home Assistant go to **Settings → Devices & services**.
 2. Click **Add Integration** and search for "Swissinno BLE (Unofficial)".
-3. Enter the name and MAC address of your trap.
+3. Enter the name and MAC address of your trap (case-insensitive).
 
 ## BLE details
 
