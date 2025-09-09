@@ -17,7 +17,7 @@ button to remotely reset the trap.
 - Reset button for supported traps
 - Config flow for easy setup
 - "Last Update" sensor showing when data was last received
-- Optional detailed debug logging for troubleshooting
+- Optional detailed debug logging for troubleshooting (written to `swissinno_ble.log`)
 
 ## Installation
 
@@ -39,7 +39,8 @@ button to remotely reset the trap.
 2. Click **Add Integration** and search for "Swissinno BLE (Unofficial)".
 3. Enter the name and MAC address of your trap (case-insensitive).
 4. Enable **Debug logging** in the integration options if you need detailed
-   information about received Bluetooth data.
+   information about received Bluetooth data. Logs are written to
+   `swissinno_ble.log` in your Home Assistant configuration directory.
 
 ## BLE details
 
