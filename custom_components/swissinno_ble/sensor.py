@@ -227,7 +227,7 @@ class SwissinnoBLEEntity(SensorEntity):
                 and bool(si.manufacturer_data),
                 BluetoothCallbackMatcher(address=self._address),
                 BluetoothScanningMode.ACTIVE,
-                15,
+                60,
             )
         except asyncio.TimeoutError:
             _LOGGER.debug(
