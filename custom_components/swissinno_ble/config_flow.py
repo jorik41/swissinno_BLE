@@ -28,7 +28,7 @@ class SwissinnoBLEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            mac_address = format_mac(user_input[CONF_MAC])
+            mac_address = format_mac(user_input[CONF_MAC]).lower()
             name = user_input[CONF_NAME]
 
             if not self._valid_mac(mac_address):
@@ -54,7 +54,7 @@ class SwissinnoBLEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Required(
                     CONF_MAC,
                     default=(
-                        format_mac(self._discovery_info.address)
+                        format_mac(self._discovery_info.address).lower()
                         if self._discovery_info
                         else ""
                     ),
@@ -70,7 +70,7 @@ class SwissinnoBLEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_bluetooth(self, discovery_info: BluetoothServiceInfoBleak):
         """Handle a bluetooth discovery flow."""
-        await self.async_set_unique_id(format_mac(discovery_info.address), raise_on_progress=False)
+        await self.async_set_unique_id(format_mac(discovery_info.address).lower(), raise_on_progress=False)
         self._abort_if_unique_id_configured()
         self._discovery_info = discovery_info
         self.context["title_placeholders"] = {"name": discovery_info.name or "Mouse Trap"}
