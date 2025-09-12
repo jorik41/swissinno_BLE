@@ -1,0 +1,29 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Swissinno BLE",
+        "description": "Set up your Swissinno BLE trap.",
+        "data": {
+          "name": "Name",
+          "mac": "MAC address"
+        }
+      }
+    },
+    "error": {
+      "invalid_mac": "Invalid MAC address"
+    }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "title": "Swissinno BLE options",
+        "data": {
+          "update_interval": "Update interval (seconds)",
+          "rechargeable_battery": "Using rechargeable battery",
+          "debug_logging": "Enable debug logging"
+        }
+      }
+    }
+  }
+}

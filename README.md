@@ -13,7 +13,8 @@ button to remotely reset the trap.
 
 ## Features
 
-- Detects trap state via Bluetooth manufacturer data
+- Triggered state exposed as a binary sensor
+- Battery voltage and percentage sensors
 - Reset button for supported traps
 - Config flow for easy setup
 - "Last Update" sensor showing when data was last received
