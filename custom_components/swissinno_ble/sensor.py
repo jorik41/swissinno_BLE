@@ -121,7 +121,7 @@ class SwissinnoBLEEntity(SensorEntity):
                 hass,
                 self._async_handle_ble_event,
                 BluetoothCallbackMatcher(address=self._address),
-                BluetoothScanningMode.ACTIVE,
+                BluetoothScanningMode.PASSIVE,
             )
         ]
         self._last_seen: float | None = self._hass.loop.time()
@@ -139,20 +139,28 @@ class SwissinnoBLEEntity(SensorEntity):
         """Process a Bluetooth event."""
         _LOGGER.debug("Advertisement from %s: %s", service_info.address, service_info)
         manufacturer_data = None
+        manufacturer_id_found = None
         for manufacturer_id in MANUFACTURER_IDS:
             data = service_info.manufacturer_data.get(manufacturer_id)
             if data:
                 manufacturer_data = data
+                manufacturer_id_found = manufacturer_id
                 if self._debug_logging:
                     _LOGGER.debug(
                         "Found manufacturer data with ID 0x%04X", manufacturer_id
                     )
                 break
-        if not manufacturer_data:
-            _LOGGER.debug(
-                "No manufacturer data with IDs %s found",
-                [f"0x{mid:04X}" for mid in MANUFACTURER_IDS],
+        if not manufacturer_data and service_info.manufacturer_data:
+            manufacturer_id_found, manufacturer_data = next(
+                iter(service_info.manufacturer_data.items())
             )
+            if self._debug_logging:
+                _LOGGER.debug(
+                    "Using manufacturer data with unexpected ID 0x%04X",
+                    manufacturer_id_found,
+                )
+        if not manufacturer_data:
+            _LOGGER.debug("No manufacturer data found in advertisement")
             return
         if service_info.address.lower() != self._address:
             _LOGGER.debug(
@@ -235,9 +243,9 @@ class SwissinnoBLEEntity(SensorEntity):
             service_info = await async_process_advertisements(
                 self._hass,
                 lambda si: si.address.lower() == self._address
-                and any(si.manufacturer_data.get(mid) for mid in MANUFACTURER_IDS),
+                and bool(si.manufacturer_data),
                 BluetoothCallbackMatcher(address=self._address),
-                BluetoothScanningMode.ACTIVE,
+                BluetoothScanningMode.PASSIVE,
                 60,
             )
         except asyncio.TimeoutError:
@@ -247,16 +255,27 @@ class SwissinnoBLEEntity(SensorEntity):
             return
 
         manufacturer_data = None
+        manufacturer_id_found = None
         for manufacturer_id in MANUFACTURER_IDS:
             data = service_info.manufacturer_data.get(manufacturer_id)
             if data:
                 manufacturer_data = data
+                manufacturer_id_found = manufacturer_id
                 if self._debug_logging:
                     _LOGGER.debug(
                         "Found manufacturer data with ID 0x%04X during poll",
                         manufacturer_id,
                     )
                 break
+        if not manufacturer_data and service_info.manufacturer_data:
+            manufacturer_id_found, manufacturer_data = next(
+                iter(service_info.manufacturer_data.items())
+            )
+            if self._debug_logging:
+                _LOGGER.debug(
+                    "Using manufacturer data with unexpected ID 0x%04X during poll",
+                    manufacturer_id_found,
+                )
         if not manufacturer_data:
             _LOGGER.debug(
                 "Advertisement from %s lacked manufacturer data", self._address,
