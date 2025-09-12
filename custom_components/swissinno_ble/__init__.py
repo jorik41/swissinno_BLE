@@ -7,12 +7,13 @@ any guarantees. Swissinno is a trademark of its respective owner.
 import logging
 
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_MAC, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.const import Platform
 
 from .const import DOMAIN, LOG_FILE
+from .coordinator import SwissinnoBLECoordinator
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BUTTON]
+PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.BUTTON]
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -23,7 +24,8 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Swissinno BLE from a config entry."""
-    if entry.options.get("debug_logging"):
+    debug_logging = entry.options.get("debug_logging", False)
+    if debug_logging:
         logger = logging.getLogger(__package__)
         logger.setLevel(logging.DEBUG)
         log_file = hass.config.path(LOG_FILE)
@@ -40,6 +42,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             logger.addHandler(file_handler)
         logger.propagate = False
 
+    address = entry.data[CONF_MAC].lower()
+    rechargeable = entry.options.get("rechargeable_battery", False)
+    update_interval = entry.options.get("update_interval", 60)
+
+    coordinator = SwissinnoBLECoordinator(
+        hass, address, rechargeable, debug_logging, update_interval
+    )
+    await coordinator.async_config_entry_first_refresh()
+    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 
@@ -47,6 +59,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload Swissinno BLE config entry."""
     result = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+    coordinator = hass.data[DOMAIN].pop(entry.entry_id, None)
+    if coordinator:
+        await coordinator.async_shutdown()
 
     if entry.options.get("debug_logging"):
         logger = logging.getLogger(__package__)
