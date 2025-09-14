@@ -6,6 +6,8 @@ any guarantees. Swissinno is a trademark of its respective owner.
 
 import logging
 
+from homeassistant.exceptions import ConfigEntryNotReady
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_MAC, Platform
 from homeassistant.core import HomeAssistant
@@ -14,6 +16,9 @@ from .const import DOMAIN, LOG_FILE
 from .coordinator import SwissinnoBLECoordinator
 
 PLATFORMS: list[Platform] = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.BUTTON]
+
+
+logger = logging.getLogger(__package__)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -26,7 +31,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Swissinno BLE from a config entry."""
     debug_logging = entry.options.get("debug_logging", False)
     if debug_logging:
-        logger = logging.getLogger(__package__)
         logger.setLevel(logging.DEBUG)
         log_file = hass.config.path(LOG_FILE)
         if not any(
@@ -49,7 +53,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     coordinator = SwissinnoBLECoordinator(
         hass, address, rechargeable, debug_logging, update_interval
     )
-    await coordinator.async_config_entry_first_refresh()
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except ConfigEntryNotReady:
+        logger.warning(
+            "No initial advertisement received from %s; entities will be unavailable until data is received",
+            address,
+        )
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -65,7 +75,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         await coordinator.async_shutdown()
 
     if entry.options.get("debug_logging"):
-        logger = logging.getLogger(__package__)
         log_file = hass.config.path(LOG_FILE)
         for handler in list(logger.handlers):
             if isinstance(handler, logging.FileHandler) and handler.baseFilename == log_file:
