@@ -102,11 +102,27 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
             )
         except asyncio.TimeoutError as err:
             if self.data.last_update is None:
-                raise UpdateFailed("No advertisement received") from err
-            if self.debug and not self._missing_logged:
-                _LOGGER.debug("No advertisement received from %s", self.address)
-                self._missing_logged = True
-            return self.data
+                if self.debug:
+                    _LOGGER.debug(
+                        "Passive scan timed out for %s; retrying with active scan",
+                        self.address,
+                    )
+                try:
+                    service_info = await async_process_advertisements(
+                        self.hass,
+                        lambda si: si.address.lower() == self.address
+                        and bool(si.manufacturer_data),
+                        BluetoothCallbackMatcher(address=self.address),
+                        BluetoothScanningMode.ACTIVE,
+                        10,
+                    )
+                except asyncio.TimeoutError as err2:
+                    raise UpdateFailed("No advertisement received") from err2
+            else:
+                if self.debug and not self._missing_logged:
+                    _LOGGER.debug("No advertisement received from %s", self.address)
+                    self._missing_logged = True
+                return self.data
 
         manufacturer_data = self._parse_manufacturer_data(service_info)
         if not manufacturer_data:
