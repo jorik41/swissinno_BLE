@@ -64,6 +64,7 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
         self.rechargeable = rechargeable
         self.debug = debug
         self.data = SwissinnoTrapData()
+        self._missing_logged = False
         self._unsub = async_register_callback(
             hass,
             self._async_handle_ble_event,
@@ -100,7 +101,12 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
                 60,
             )
         except asyncio.TimeoutError as err:
-            raise UpdateFailed("No advertisement received") from err
+            if self.data.last_update is None:
+                raise UpdateFailed("No advertisement received") from err
+            if self.debug and not self._missing_logged:
+                _LOGGER.debug("No advertisement received from %s", self.address)
+                self._missing_logged = True
+            return self.data
 
         manufacturer_data = self._parse_manufacturer_data(service_info)
         if not manufacturer_data:
@@ -173,6 +179,7 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
         if time is not None:
             self.data.last_update = dt_util.utc_from_timestamp(time)
             self._last_service_info_time = time
+            self._missing_logged = False
 
         self.async_set_updated_data(self.data)
 
