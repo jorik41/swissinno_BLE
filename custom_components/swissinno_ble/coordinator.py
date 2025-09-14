@@ -116,8 +116,9 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
             if self.data.last_update is None:
                 if self.debug:
                     _LOGGER.debug(
-                        "Passive scan timed out for %s; retrying with active scan",
+                        "Passive scan timed out for %s after 60s; last advertisement %s; retrying with active scan",
                         self.address,
+                        self.data.last_update.isoformat() if self.data.last_update else "never",
                     )
                 try:
                     service_info = await async_process_advertisements(
@@ -131,12 +132,18 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
                 except asyncio.TimeoutError as err2:
                     if self.debug:
                         _LOGGER.debug(
-                            "Active scan timed out for %s", self.address
+                            "Active scan timed out for %s after 10s; last advertisement %s",
+                            self.address,
+                            self.data.last_update.isoformat() if self.data.last_update else "never",
                         )
                     raise UpdateFailed("No advertisement received") from err2
             else:
                 if self.debug and not self._missing_logged:
-                    _LOGGER.debug("No advertisement received from %s", self.address)
+                    _LOGGER.debug(
+                        "No advertisement received from %s since %s",
+                        self.address,
+                        self.data.last_update.isoformat(),
+                    )
                     self._missing_logged = True
                 return self.data
 
