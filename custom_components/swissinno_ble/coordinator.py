@@ -79,6 +79,12 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
         """Handle incoming Bluetooth advertisement."""
         manufacturer_data = self._parse_manufacturer_data(service_info)
         if not manufacturer_data:
+            if self.debug:
+                _LOGGER.debug(
+                    "Advertisement from %s ignored: no manufacturer data: %s",
+                    self.address,
+                    service_info,
+                )
             return
         self._process_manufacturer_data(manufacturer_data, service_info.time)
 
@@ -89,6 +95,12 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
             manufacturer_data = self._parse_manufacturer_data(info)
             if manufacturer_data:
                 self._process_manufacturer_data(manufacturer_data, info.time)
+            elif self.debug:
+                _LOGGER.debug(
+                    "Cached service info from %s lacked manufacturer data: %s",
+                    self.address,
+                    info,
+                )
             return self.data
 
         try:
@@ -117,6 +129,10 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
                         10,
                     )
                 except asyncio.TimeoutError as err2:
+                    if self.debug:
+                        _LOGGER.debug(
+                            "Active scan timed out for %s", self.address
+                        )
                     raise UpdateFailed("No advertisement received") from err2
             else:
                 if self.debug and not self._missing_logged:
@@ -126,6 +142,12 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
 
         manufacturer_data = self._parse_manufacturer_data(service_info)
         if not manufacturer_data:
+            if self.debug:
+                _LOGGER.debug(
+                    "Advertisement from %s lacked manufacturer data: %s",
+                    self.address,
+                    service_info,
+                )
             raise UpdateFailed("Advertisement lacked manufacturer data")
         self._process_manufacturer_data(manufacturer_data, service_info.time)
         return self.data
