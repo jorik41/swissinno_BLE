@@ -12,7 +12,7 @@ from .const import DOMAIN, UNAVAILABLE_AFTER_SECS
 from .coordinator import SwissinnoBLECoordinator, SwissinnoTrapData
 
 
-class SwissinnoBLEEntity(CoordinatorEntity[SwissinnoTrapData]):
+class SwissinnoBLEEntity(CoordinatorEntity[SwissinnoBLECoordinator]):
     """Base class for Swissinno BLE entities."""
 
     def __init__(
