@@ -112,7 +112,7 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
                 BluetoothScanningMode.PASSIVE,
                 60,
             )
-        except asyncio.TimeoutError as err:
+        except (asyncio.TimeoutError, asyncio.CancelledError) as err:
             if self.data.last_update is None:
                 if self.debug:
                     _LOGGER.debug(
@@ -129,7 +129,7 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
                         BluetoothScanningMode.ACTIVE,
                         10,
                     )
-                except asyncio.TimeoutError as err2:
+                except (asyncio.TimeoutError, asyncio.CancelledError) as err2:
                     if self.debug:
                         _LOGGER.debug(
                             "Active scan timed out for %s after 10s; last advertisement %s",
