@@ -61,14 +61,16 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
             update_interval=timedelta(seconds=update_interval),
         )
         self.address = address
+        self._ble_address = address.upper()
         self.rechargeable = rechargeable
         self.debug = debug
         self.data = SwissinnoTrapData()
         self._missing_logged = False
+        self._matcher = BluetoothCallbackMatcher(address=self._ble_address)
         self._unsub = async_register_callback(
             hass,
             self._async_handle_ble_event,
-            BluetoothCallbackMatcher(address=self.address),
+            self._matcher,
             BluetoothScanningMode.PASSIVE,
         )
         self._last_service_info_time: float | None = None
@@ -82,7 +84,7 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
             if self.debug:
                 _LOGGER.debug(
                     "Advertisement from %s ignored: no manufacturer data: %s",
-                    self.address,
+                    self._ble_address,
                     service_info,
                 )
             return
@@ -90,7 +92,7 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
 
     async def _async_update_data(self) -> SwissinnoTrapData:
         """Poll for advertisements if we have not seen one recently."""
-        info = async_last_service_info(self.hass, self.address)
+        info = async_last_service_info(self.hass, self._ble_address)
         if info and info.time != self._last_service_info_time:
             manufacturer_data = self._parse_manufacturer_data(info)
             if manufacturer_data:
@@ -98,50 +100,33 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
             elif self.debug:
                 _LOGGER.debug(
                     "Cached service info from %s lacked manufacturer data: %s",
-                    self.address,
+                    self._ble_address,
                     info,
                 )
             return self.data
 
-        try:
-            service_info = await async_process_advertisements(
-                self.hass,
-                lambda si: si.address.lower() == self.address
-                and bool(si.manufacturer_data),
-                BluetoothCallbackMatcher(address=self.address),
-                BluetoothScanningMode.PASSIVE,
-                60,
+        service_info = await self._async_get_advertisement(
+            BluetoothScanningMode.PASSIVE, 60
+        )
+        if not service_info:
+            if self.debug:
+                _LOGGER.debug(
+                    "Passive scan timed out for %s after 60s; last advertisement %s; retrying with active scan",
+                    self._ble_address,
+                    self.data.last_update.isoformat()
+                    if self.data.last_update
+                    else "never",
+                )
+            service_info = await self._async_get_advertisement(
+                BluetoothScanningMode.ACTIVE, 10
             )
-        except (asyncio.TimeoutError, asyncio.CancelledError) as err:
-            if self.data.last_update is None:
-                if self.debug:
-                    _LOGGER.debug(
-                        "Passive scan timed out for %s after 60s; last advertisement %s; retrying with active scan",
-                        self.address,
-                        self.data.last_update.isoformat() if self.data.last_update else "never",
-                    )
-                try:
-                    service_info = await async_process_advertisements(
-                        self.hass,
-                        lambda si: si.address.lower() == self.address
-                        and bool(si.manufacturer_data),
-                        BluetoothCallbackMatcher(address=self.address),
-                        BluetoothScanningMode.ACTIVE,
-                        10,
-                    )
-                except (asyncio.TimeoutError, asyncio.CancelledError) as err2:
-                    if self.debug:
-                        _LOGGER.debug(
-                            "Active scan timed out for %s after 10s; last advertisement %s",
-                            self.address,
-                            self.data.last_update.isoformat() if self.data.last_update else "never",
-                        )
-                    raise UpdateFailed("No advertisement received") from err2
-            else:
+            if not service_info:
+                if self.data.last_update is None:
+                    raise UpdateFailed("No advertisement received")
                 if self.debug and not self._missing_logged:
                     _LOGGER.debug(
                         "No advertisement received from %s since %s",
-                        self.address,
+                        self._ble_address,
                         self.data.last_update.isoformat(),
                     )
                     self._missing_logged = True
@@ -152,7 +137,7 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
             if self.debug:
                 _LOGGER.debug(
                     "Advertisement from %s lacked manufacturer data: %s",
-                    self.address,
+                    self._ble_address,
                     service_info,
                 )
             raise UpdateFailed("Advertisement lacked manufacturer data")
@@ -189,7 +174,7 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
         if self.debug:
             _LOGGER.debug(
                 "Manufacturer data from %s: %s",
-                self.address,
+                self._ble_address,
                 manufacturer_data.hex().upper(),
             )
         self.data.raw = manufacturer_data.hex().upper()
@@ -222,17 +207,53 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
             self.data.battery = _voltage_to_percentage(voltage, min_v, max_v)
 
         if time is not None:
-            self.data.last_update = dt_util.utc_from_timestamp(time)
+            self.data.last_update = dt_util.utcnow()
             self._last_service_info_time = time
             self._missing_logged = False
 
         self.async_set_updated_data(self.data)
+        if self.debug:
+            _LOGGER.debug(
+                "Processed advertisement for %s: triggered=%s voltage=%s battery=%s last_update=%s",
+                self._ble_address,
+                self.data.triggered,
+                self.data.voltage,
+                self.data.battery,
+                self.data.last_update,
+            )
 
     async def async_shutdown(self) -> None:
         """Clean up callbacks."""
         if self._unsub:
             self._unsub()
             self._unsub = None
+
+    async def _async_get_advertisement(
+        self, mode: BluetoothScanningMode, timeout: int
+    ) -> BluetoothServiceInfoBleak | None:
+        """Wait for an advertisement that contains manufacturer data."""
+        def _match(service_info: BluetoothServiceInfoBleak) -> bool:
+            if service_info.address == self._ble_address and self.debug:
+                _LOGGER.debug(
+                    "Saw advertisement from %s (connectable=%s, has_manufacturer=%s)",
+                    self._ble_address,
+                    service_info.connectable,
+                    bool(service_info.manufacturer_data),
+                )
+            return service_info.address == self._ble_address and bool(
+                service_info.manufacturer_data
+            )
+
+        try:
+            return await async_process_advertisements(
+                self.hass,
+                _match,
+                self._matcher,
+                mode,
+                timeout,
+            )
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            return None
 
 
 def _parse_battery_raw(manufacturer_data: bytes) -> int | None:
@@ -253,4 +274,3 @@ def _voltage_to_percentage(
     """Convert a voltage reading to a battery percentage."""
     percent = (voltage - min_voltage) / (max_voltage - min_voltage) * 100
     return max(0, min(100, round(percent)))
-

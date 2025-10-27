@@ -37,7 +37,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             isinstance(h, logging.FileHandler) and h.baseFilename == log_file
             for h in logger.handlers
         ):
-            file_handler = logging.FileHandler(log_file)
+            file_handler = await hass.async_add_executor_job(
+                logging.FileHandler, log_file
+            )
             file_handler.setFormatter(
                 logging.Formatter(
                     "%(asctime)s %(name)s %(levelname)s: %(message)s"
@@ -76,12 +78,14 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     if entry.options.get("debug_logging"):
         log_file = hass.config.path(LOG_FILE)
+        handlers_to_close: list[logging.FileHandler] = []
         for handler in list(logger.handlers):
             if isinstance(handler, logging.FileHandler) and handler.baseFilename == log_file:
                 logger.removeHandler(handler)
-                handler.close()
+                handlers_to_close.append(handler)
+        for handler in handlers_to_close:
+            await hass.async_add_executor_job(handler.close)
         logger.propagate = True
         logger.setLevel(logging.INFO)
 
     return result
-
