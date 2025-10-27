@@ -192,7 +192,7 @@ class SwissinnoBLECoordinator(DataUpdateCoordinator[SwissinnoTrapData]):
 
         raw = _parse_battery_raw(manufacturer_data)
         if raw is not None:
-            voltage = _raw_to_voltage(raw)
+            voltage = _raw_to_voltage(raw, rechargeable=self.rechargeable)
             self.data.voltage = voltage
             min_v = (
                 BATTERY_MIN_VOLTAGE_RECHARGEABLE
@@ -263,9 +263,43 @@ def _parse_battery_raw(manufacturer_data: bytes) -> int | None:
     return int.from_bytes(manufacturer_data[7:9], "little")
 
 
-def _raw_to_voltage(raw: int) -> float:
-    """Convert the raw battery reading to volts."""
-    return round((raw - 253) / 72, 2)
+def _raw_to_voltage(raw: int, *, rechargeable: bool) -> float:
+    """Convert the raw battery reading to volts.
+
+    Some Swissinno hardware revisions encode the battery measurement in the
+    low 10 bits while using the high bits for other flags. Those payloads report
+    higher raw numbers even when the cells are fresh, which would result in
+    implausible voltages if we directly applied the legacy linear equation.
+
+    Detected hardware with non-zero high bits uses an inverse 10-bit scale
+    (0 → full battery, 1023 → empty). We normalise that value and map it to the
+    configured voltage range. Older hardware keeps reporting values that work
+    with the original linear conversion.
+    """
+
+    raw_value = raw & 0x03FF  # keep low 10 bits containing the measurement
+    has_flags = raw >> 10
+
+    min_voltage = (
+        BATTERY_MIN_VOLTAGE_RECHARGEABLE
+        if rechargeable
+        else BATTERY_MIN_VOLTAGE
+    )
+    max_voltage = (
+        BATTERY_MAX_VOLTAGE_RECHARGEABLE
+        if rechargeable
+        else BATTERY_MAX_VOLTAGE
+    )
+
+    if has_flags:
+        # Newer hardware inverts the scale: smaller raw_value ⇒ higher voltage.
+        fraction = 1.0 - min(raw_value, 1023) / 1023
+        voltage = min_voltage + fraction * (max_voltage - min_voltage)
+    else:
+        voltage = (raw_value - 253) / 72
+
+    voltage = max(min_voltage, min(max_voltage, voltage))
+    return round(voltage, 2)
 
 
 def _voltage_to_percentage(
